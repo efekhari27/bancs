@@ -63,4 +63,4 @@ docs/_build/
 profile_default/
 ipython_config.py
 
-
+mascot_benchmark/owt_case/*
