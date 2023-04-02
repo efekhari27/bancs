@@ -19,7 +19,7 @@ X = ot.ComposedDistribution([ot.Normal(0., 1.)] * 2)
 Y = ot.CompositeRandomVector(g, ot.RandomVector(X))
 problem4B.thresholdEvent = ot.ThresholdEvent(Y, ot.LessOrEqual(), 0.)
 problem4B.probability = 0.0022130999999990827
-
+#
 problemRP57 = otb.ReliabilityProblem57()
 equations = ["var g1 := -x1^2 + x2^3 + 3"]
 equations.append("var g2 := 2 - x1 - 8 * x2")
@@ -31,8 +31,27 @@ X = ot.ComposedDistribution([ot.Normal(0., 0.6)] * 2)
 Y = ot.CompositeRandomVector(g, ot.RandomVector(X))
 problemRP57.thresholdEvent = ot.ThresholdEvent(Y, ot.LessOrEqual(), 0.)
 problemRP57.probability = 0.0009812000000000679
-
+#
 problemRP38 = otb.ReliabilityProblem38()
+#
+problem_parabolic = otb.ReliabilityProblem57()
+g = ot.SymbolicFunction(["x1", "x2"], ["(x1 - x2) ^ 2 - 8 * (x1 + x2 - 5)"])
+X = ot.ComposedDistribution([ot.Normal(0., 1.)] * 2)
+Y = ot.CompositeRandomVector(g, ot.RandomVector(X))
+problem_parabolic.thresholdEvent = ot.ThresholdEvent(Y, ot.LessOrEqual(), 0.)
+problem_parabolic.probability = 0.0001315399999999369
+problem_parabolic.name = "Parabolic"
+
+## RP parabolic ##
+# AMISE tuning
+rb = ReliabilityBenchmark(problems=[problem_parabolic], methods=["BANCS", "SS", "NAIS"], sizes=[int(1e3), int(2e3), int(4e3), int(6e3), int(8e3), int(1e4)])
+ebc_tuning = "amise"
+rb.run(reps=100, m=ebc_tuning, save_file=f"Parabolic_results_{ebc_tuning}.csv")
+
+# Beta tuning 
+rb = ReliabilityBenchmark(problems=[problem_parabolic], methods=["BANCS"], sizes=[int(1e3), int(2e3), int(4e3), int(6e3), int(8e3), int(1e4)])
+ebc_tuning = "beta"
+rb.run(reps=100, m=ebc_tuning, save_file=f"Parabolic_results_{ebc_tuning}.csv")
 
 ## RP four-branch ##
 # AMISE tuning

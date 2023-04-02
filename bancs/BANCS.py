@@ -26,12 +26,18 @@ class BANCS:
         self.threshold = failure_event.getThreshold()
         self.xlabels = list(self.X.getDescription())
         self.dim = self.X.getDimension()
+        self.operator =failure_event.getOperator()
+        if self.operator(1,2):
+            self.operator = np.less_equal
+            self.aoperator = np.greater_equal 
+        else:
+            self.operator = np.greater_equal
+            self.aoperator = np.less_equal
         if M is None:
             ## IMSE minimization manuscript M.Lasserre (2022) p.117
             self.M = 1 + int((self.p0 * self.N) ** (2 / (self.dim + 4)))
         else:
             self.M = M
-        # TODO: add flexibility when the inequality is different
         self.df = pd.DataFrame([], columns=["Subset"] + self.xlabels + ["Y", "Quantile", "Failed"])
 
     ## Generate a sample and compute quantile
@@ -51,7 +57,7 @@ class BANCS:
         else : 
             q0 = np.quantile(y_sample, self.p0)
         q0 = np.repeat(q0, self.N).reshape(-1, 1)
-        isfailed = (y_sample <= q0)
+        isfailed = self.operator(y_sample, q0)
         res = np.concatenate((ss_indexes, x_sample, y_sample, q0, isfailed), axis=1)
         res = pd.DataFrame(res, columns=self.df.columns)
         return pd.concat([self.df, pd.DataFrame(res)])
@@ -80,7 +86,7 @@ class BANCS:
         self.df = self.generate(ss_index, self.X)
         self.conditional_distributions = [self.X]
         #for ss_index in range(nb_subset):
-        while (self.df["Quantile"].min() >= self.threshold) and (ss_index < 15):
+        while (self.aoperator(self.df["Quantile"].min(), self.threshold)) and (ss_index < 15):
             Xcond = self.nonparametric_fit(ss_index)
             self.conditional_distributions.append(Xcond)
             self.df = self.generate(ss_index + 1, Xcond)
@@ -88,14 +94,13 @@ class BANCS:
         quantiles = self.df["Quantile"].unique()
         nb_steps = len(quantiles)
         # Setup the last subset sample to failed if below the threshold
-        self.df.loc[(self.df["Y"] <= self.threshold) & (self.df["Subset"]==(nb_steps - 1)), "Failed"] = 1.
+        self.df.loc[self.operator(self.df["Y"], self.threshold) & (self.df["Subset"]==(nb_steps - 1)), "Failed"] = 1.
         return quantiles
     
     def compute_pf(self):
         quantiles = self.df["Quantile"].unique()
         nb_steps = len(quantiles)
-        return (self.p0 ** (nb_steps - 1)) * (self.df[(self.df["Y"] <= self.threshold) & (self.df["Subset"]==nb_steps - 1)].shape[0]) / self.N
-
+        return (self.p0 ** (nb_steps - 1)) * (self.df[self.operator(self.df["Y"], self.threshold) & (self.df["Subset"]==nb_steps - 1)].shape[0]) / self.N
 
     def draw_2D_BACS(self, title="", colorbar=cm.Greys_r):
         quantiles = self.df["Quantile"].unique()

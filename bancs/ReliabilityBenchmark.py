@@ -51,6 +51,9 @@ class ReliabilityBenchmark:
                     ss.setMaximumOuterSampling(size)
                     ss.setMaximumCoefficientOfVariation(-1.0)
                     ss.setConditionalProbability(self.p0)
+                    ss.setBlockSize(10)
+                    timer = ot.TimerCallback(120)
+                    ss.setStopCallback(timer)
                     ss.run()
                     pf = ss.getResult().getProbabilityEstimate()
 
