@@ -3,11 +3,15 @@
 from .BANCS import BANCS
 from .BANCS import DrawFunctions
 from .ReliabilityBenchmark import ReliabilityBenchmark
+from .NAIS import NAISAlgorithm, NAISResult
 
 
 __all__ = [
+    
     "BANCS",
     "DrawFunctions",
-    "ReliabilityBenchmark"
+    "ReliabilityBenchmark",
+    "NAISAlgorithm",
+    "NAISResult"
 ]
 __version__ = "0.1"
