@@ -1,8 +1,8 @@
 # Bernstein Adaptive Nonparametric Conditional Sampling (BANCS)
 
-BANCS is a rare event estimation algorithm using the same structure as other adaptive importance sampling methods (e.g., nonparametric adaptive importance sampling [1] or AIS-CE [2]) while employing a different approach to fit the intermediate conditional distributions. 
+BANCS is a rare event estimation algorithm using the same structure as other adaptive importance sampling methods (e.g., nonparametric adaptive importance sampling [1] or adaptive importance sampling by cross-entropy [2]) while employing a different approach to fit the intermediate conditional distributions. 
 
-At step $k$, after estimating the intermediary $p_0$-order quantile $\widehat{q}_{[k]}^{p_0}$, a nonparametric model is fitted on the set $\mathbf{A}_{[k+1]}$ of all samples leading to values below $\widehat{q}_{[k]}^{p_0}$ (see step 1 and 2 in Fig. XX and XX). This inference is decomposed into a fit of the marginals (by univariate KDE) and a fit of the copula (by empirical Bernstein copula [3]).
+At step $k$, after estimating the intermediary $p_0$-order quantile $\widehat{q}_{[k]}^{p_0}$ , a nonparametric model is fitted on the set $A_{[k+1]}$ of all samples leading to values below $\widehat{q}_{[k]}^{p_0}$ (see Fig. 1). This inference is decomposed into a fit of the marginals (by univariate KDE) and a fit of the copula (by empirical Bernstein copula [3]).
 
 The generation of the next i.i.d. sample on the conditional distributions is straightforward and does not require MCMC sampling like in subset simulation [4]. Note that BANCS does not require iso-probabilistic transform and can directly operate in the "physical space".
 
