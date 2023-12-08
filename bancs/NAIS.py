@@ -144,9 +144,8 @@ class NAISAlgorithm(object):
         else:
             weights = self.compute_weights(sample,resp_sample,quantile_courant,self.distrib) #computation of weights ## type : array
             aux_distrib = self.compute_aux_distribution(sample,weights) #computation of auxiliary distribution ##type : ComposedDistribution
-        i = 0
+        self.nb_subsets = 0
         while self.operator(self.S,quantile_courant) and quantile_courant != self.S:
-            print(i)
             sample = aux_distrib.getSample(self.n_IS) # drawing of samples using auxiliary density
             resp_sample = self.limit_state_function(sample) #evaluation on limit state function
             quantile_courant = resp_sample.computeQuantile(self.rho_quantile)[0] #computation of current quantile
@@ -156,7 +155,7 @@ class NAISAlgorithm(object):
             else:
                 weights = self.compute_weights(sample,resp_sample,quantile_courant,aux_distrib) #computation of weights
                 aux_distrib = self.compute_aux_distribution(sample,weights) #update of auxiliary distribution
-
+            self.nb_subsets += 1
         #Estimation of failure probability
         y= np.array([self.operator(resp_sample[i][0],self.S) for i in range(resp_sample.getSize())])  #find failure points # type : array of boolean
         indices_critic=np.where(y==True)[0].tolist() # find failure samples indices

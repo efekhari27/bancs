@@ -90,6 +90,7 @@ class BANCS:
         for i in range(self.dim):
             sample = ot.Sample(failed_sample[:, i].reshape(-1, 1))
             wmix = kernel.computeMixedBandwidth(sample)
+            #wmix = kernel.computeSilvermanBandwidth(sample)
             marginal = kernel.build(sample, wmix)
             if (self.lower_truncatures[i] != None) and (self.upper_truncatures[i] != None):
                 marginal = ot.TruncatedDistribution(marginal, self.lower_truncatures[i], self.upper_truncatures[i])
@@ -115,9 +116,9 @@ class BANCS:
             self.df = self.generate(ss_index + 1, Xcond)
             ss_index += 1
         quantiles = self.df["Quantile"].unique()
-        nb_steps = len(quantiles)
+        self.nb_steps = len(quantiles)
         # Setup the last subset sample to failed if below the threshold
-        self.df.loc[(self.fail_operator(self.df["Y"], self.threshold)) & (self.df["Subset"]==(nb_steps - 1)), "Failed"] = 1
+        self.df.loc[(self.fail_operator(self.df["Y"], self.threshold)) & (self.df["Subset"]==(self.nb_steps - 1)), "Failed"] = 1
         # Generally failed: samples below the threshold among all the subsets 
         self.df['gFailed'] = 0
         self.df.loc[(self.fail_operator(self.df["Y"], self.threshold)), 'gFailed'] = 1
@@ -125,22 +126,24 @@ class BANCS:
     
     def compute_pf(self):
         quantiles = self.df["Quantile"].unique()
-        nb_steps = len(quantiles)
         # BANCS estimator 1 (type Subset Sampling)
         #pf = (self.p0 ** (nb_steps - 1)) * (self.df[(self.fail_operator(self.df["Y"], self.threshold)) & (self.df["Subset"]==nb_steps - 1)].shape[0]) / self.N
-        # BANCS estimator 2 (type Nonadaptive importance sampling)
-        pf = self.df.loc[self.df['gFailed']==1, "IS_weight"].sum() / (nb_steps * self.N)
+        # BANCS estimator 2 (type Nonadaptive importance sampling keeping all the failed samples)
+        #pf = self.df.loc[self.df['gFailed']==1, "IS_weight"].sum() / (nb_steps * self.N)
+        # BANCS estimator 3 (type Nonadaptive importance sampling)
+        pf = self.df.loc[(self.df["Subset"]==self.nb_steps - 1) & (self.df['Failed']==1), "IS_weight"].sum() / self.N        
         return pf
 
     def compute_var(self):
-        var_pf = (np.mean(self.df.loc[self.df['gFailed']==1, "IS_weight"] ** 2) - self.compute_pf() ** 2) / (self.N-1)
+        #var_pf = (np.mean(self.df.loc[self.df['gFailed']==1, "IS_weight"] ** 2) - self.compute_pf() ** 2) / (self.N-1)
+        var_pf = (np.mean(self.df.loc[(self.df["Subset"]==self.nb_steps - 1) & (self.df['Failed']==1), "IS_weight"] ** 2) - self.compute_pf() ** 2) / (self.N-1)
         return var_pf
     
     def draw_2D_BANCS(self, title="", colorbar=cm.Greys_r):
         quantiles = self.df["Quantile"].unique()
         nb_steps = len(quantiles)
         d = DrawFunctions()
-        #d.set_bounds([-4] * 2, [10] * 2)
+        #d.set_bounds([-2] * 2, [8] * 2)
         fig = d.draw_2D_controur(title, function=self.g, distribution=self.X, colorbar=colorbar, contour_values=False)
         for i in range(nb_steps):
             failed_sample = self.df[(self.df["Subset"]==i) & (self.df["Failed"]==1)]
@@ -150,7 +153,7 @@ class BANCS:
                 quantile = 0.
             else: 
                 quantile = quantiles[i]
-            sslabel = fr"Subset {i+1} ($\hat{{q}}_{{[{i+1}]}}^\alpha = {quantile:.3}$)"
+            sslabel = fr"Sample {i+1} ($\hat{{q}}_{{[{i+1}]}}^{{p_0}} = {quantile:.3}$)"
             plt.scatter(x0, x1, color='C{}'.format(i), marker='.', alpha=0.5, label=sslabel)
             contour = plt.contour(d.X0, d.X1, d.Z, levels=[quantile], colors='C{}'.format(i), linewidths=2, linestyles=['solid'])
             plt.clabel(contour, inline=True, fontsize=12, colors='k')
