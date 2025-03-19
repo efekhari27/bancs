@@ -58,11 +58,11 @@ class BANCS:
     def generate(self, ss_index, Xcond):
         ss_indexes = np.repeat(ss_index, self.N).reshape(-1, 1)
         x_sample = np.array(Xcond.getSample(self.N))
-        is_weight = np.array(self.X.computePDF(x_sample)) / np.array(Xcond.computePDF(x_sample))
         # Option to sample from QMC
-        #sobol = ot.LowDiscrepancyExperiment(ot.SobolSequence(), Xcond, self.N)
-        #sobol.setRandomize(True)
-        #x_sample = sobol.generate()
+        # sobol = ot.LowDiscrepancyExperiment(ot.SobolSequence(), Xcond, self.N)
+        # sobol.setRandomize(True)
+        # x_sample = sobol.generate()
+        is_weight = np.array(self.X.computePDF(x_sample)) / np.array(Xcond.computePDF(x_sample))
         y_sample = np.array(self.g(x_sample))
         q_k = np.quantile(y_sample, self.quantile_order)
         q_k = np.repeat(q_k, self.N).reshape(-1, 1)

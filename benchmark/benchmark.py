@@ -61,33 +61,33 @@ oscillator_problem.name = "Oscillator"
 problemRP53 = otb.ReliabilityProblem53()
 # Almost linear but 7D
 problemRP38 = otb.ReliabilityProblem38()
-problem4B.probability = 0.008043179999996148
+problemRP38.probability = 0.008043179999996148
 #
 ebc_tuning = "amise"
 nb_reps = 100
-bench_sizes = [300, 500, 700, int(1e3), int(2e3), int(5e3), int(1e4)]
+bench_sizes = [300, 500, 700, int(1e3), int(2e3), int(5e3)]
 
 ## RP parabolic ##
 #####################
-rb = ReliabilityBenchmark(problems=[problem_parabolic], methods=["BANCS", "SS", "NAIS"], sizes=bench_sizes)
-rb.run(m="amise", save_file=f"./bancs_results/Parabolic_results_{ebc_tuning}.csv")
+#rb = ReliabilityBenchmark(problems=[problem_parabolic], methods=["BANCS", "SS", "NAIS"], sizes=bench_sizes, m=ebc_tuning, reps=nb_reps)
+#rb.run(save_file=f"~/Documents/2023/bancs/benchmark/bancs_results/Parabolic_results_{ebc_tuning}.csv")
 
 ## RP 53 ##
 #####################
-#rb = ReliabilityBenchmark(problems=[problemRP53], methods=["BANCS", "SS", "NAIS"], sizes=bench_sizes)
-#rb.run(m=ebc_tuning, save_file=f"./bancs_results/RP53_results_{ebc_tuning}.csv")
+#rb = ReliabilityBenchmark(problems=[problemRP53], methods=["BANCS", "SS", "NAIS"], sizes=bench_sizes, m=ebc_tuning, reps=nb_reps)
+#rb.run(save_file=f"~/Documents/2023/bancs/benchmark/bancs_results/RP53_results_{ebc_tuning}.csv")
 
 ## RP 38 ##
 #####################
-#rb = ReliabilityBenchmark(problems=[problemRP38], methods=["BANCS", "SS", "NAIS"], sizes=bench_sizes)
-#rb.run(reps=nb_reps, m=ebc_tuning, save_file=f"./bancs_results/RP38_results_{ebc_tuning}.csv")
+#rb = ReliabilityBenchmark(problems=[problemRP38], methods=["BANCS", "SS", "NAIS"], sizes=bench_sizes, m=ebc_tuning, reps=nb_reps)
+#rb.run(save_file=f"~/Documents/2023/bancs/benchmark/bancs_results/RP38_results_{ebc_tuning}.csv")
 
 ## RP four-branch ##
 #####################
-#rb = ReliabilityBenchmark(problems=[problem4B], methods=["BANCS", "SS", "NAIS"], sizes=bench_sizes)
-#rb.run(reps=nb_reps, m=ebc_tuning, save_file=f"./bancs_results/RP4B_results_{ebc_tuning}.csv")
+#rb = ReliabilityBenchmark(problems=[problem4B], methods=["BANCS", "SS", "NAIS"], sizes=bench_sizes, m=ebc_tuning, reps=nb_reps)
+#rb.run(save_file=f"~/Documents/2023/bancs/benchmark/bancs_results/RP4B_results_{ebc_tuning}.csv")
 
 ## Oscillator ##
 ################
-#rb = ReliabilityBenchmark(problems=[oscillator_problem], methods=["BANCS", "SS"], sizes=bench_sizes)
-#rb.run(reps=nb_reps, m=ebc_tuning, save_file=f"./bancs_results/Oscillator_results_{ebc_tuning}.csv")
+rb = ReliabilityBenchmark(problems=[oscillator_problem], methods=["BANCS", "SS"], sizes=bench_sizes, m=ebc_tuning, reps=nb_reps)
+rb.run(save_file=f"~/Documents/2023/bancs/benchmark/bancs_results/Oscillator_results_{ebc_tuning}.csv")
