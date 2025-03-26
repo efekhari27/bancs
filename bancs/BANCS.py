@@ -11,13 +11,13 @@ import pandas as pd
 import openturns as ot
 from matplotlib import cm
 from matplotlib import pyplot as plt
-#ot.ResourceMap.SetAsUnsignedInteger('KernelSmoothing-BinNumber', 1000)
+
 
 class BANCS:
     """
     TODO: docstring
     """
-    def __init__(self, failure_event, N=int(1e4), M=None, p0=0.1, lower_truncatures=[None], upper_truncatures=[None]):
+    def __init__(self, failure_event, N=int(1e4), M="AMISE", p0=0.1, lower_truncatures=[None], upper_truncatures=[None]):
         self.failure_event = failure_event
         self.N = N
         self.p0 = p0
@@ -28,7 +28,7 @@ class BANCS:
         self.xlabels = list(self.X.getDescription())
         self.dim = self.X.getDimension()
         self.fail_operator = failure_event.getOperator()
-        if self.fail_operator(1,2):
+        if self.fail_operator(1, 2):
             self.quantile_order = self.p0
             self.fail_operator = np.less_equal
             self.aoperator = np.greater_equal 
@@ -47,11 +47,8 @@ class BANCS:
         elif (upper_truncatures==[None]): 
             self.lower_truncatures = lower_truncatures
             self.upper_truncatures = [None] * self.dim
-        if M is None:
-            ## IMSE minimization manuscript M.Lasserre (2022) p.117
-            self.M = 1 + int((self.p0 * self.N) ** (2 / (self.dim + 4)))
-        else:
-            self.M = M
+        self.M = M
+        self._used_bins_m = [] 
         self.df = pd.DataFrame([], columns=["Subset"] + self.xlabels + ["IS_weight", "Y", "Quantile", "Failed"])
 
     ## Generate a sample and compute quantile
@@ -69,12 +66,16 @@ class BANCS:
         isfailed = self.fail_operator(y_sample, q_k)
         res = np.concatenate((ss_indexes, x_sample, is_weight, y_sample, q_k, isfailed), axis=1)
         res = pd.DataFrame(res, columns=self.df.columns)
-        return pd.concat([self.df, pd.DataFrame(res)])
+        if self.df.empty:
+            return res
+        else:
+            return pd.concat([self.df, res])
+
 
     ## Fit a non parametric model
     def nonparametric_fit(self, ss_index):
         failed_sample = self.df[(self.df["Failed"]==1) & (self.df["Subset"]==ss_index)][self.xlabels].values
-        # Including the failed samples from the previous subsets and weighting tem by repetitions
+        # Including the failed samples from the previous subsets and weighting them using repetitions (inverse importance sampling mechanism)
         for k in range(ss_index): 
             failed_bool = self.fail_operator(self.df.loc[self.df["Subset"]==k, "Y"].values, self.df.loc[self.df["Subset"]==ss_index, "Quantile"].values)
             sub_df = self.df.loc[self.df["Subset"]==k]
@@ -100,7 +101,19 @@ class BANCS:
                 marginal = ot.TruncatedDistribution(marginal, self.upper_truncatures[i], ot.TruncatedDistribution.UPPER)
             marginals.append(marginal)
         # Fit copula by EBC
-        bernstein_copula = ot.EmpiricalBernsteinCopula(failed_sample, self.M)
+        if self.M == "AMISE":
+            m_opt = ot.BernsteinCopulaFactory.ComputeAMISEBinNumber(failed_sample)
+        elif self.M == "Beta": 
+            m_opt = np.unique(failed_sample, axis=0).shape[0]
+        elif self.M == "LogLikelihood":
+            m_opt = optimize_ebc_loglikehood(failed_sample, kfolds=2)
+        elif self.M == "PenalizedKL":
+            m_opt = ot.BernsteinCopulaFactory.ComputePenalizedCsiszarDivergenceBinNumber(np.unique(failed_sample, axis=0), ot.SymbolicFunction(['t'], ['t * ln(t)']))
+        elif isinstance(self.M, int):
+            m_opt = self.M
+        bernstein_copula = ot.EmpiricalBernsteinCopula(failed_sample, m_opt)
+        # print(f"{self.M} : {m_ebc}")
+        self._used_bins_m.append(m_opt)
         return ot.ComposedDistribution(marginals, bernstein_copula)
 
     ## Run the algorithm
@@ -160,6 +173,50 @@ class BANCS:
         plt.legend(bbox_to_anchor=(0.5, -0.12), loc='upper center', ncol=2, columnspacing=1.2)
         return fig
 
+
+def cross_validation_loglikelihood(m, sample, kfolds=2):
+    cv_loglikelihood = 0.0
+    splitter = ot.KFoldSplitter(sample.getSize(), kfolds)
+    for indices_train, indices_test in splitter:
+        sample_train, sample_test = sample[indices_train], sample[indices_test]
+        sample_train = (sample_train.rank() + 0.5) / sample_train.getSize()
+        sample_test = (sample_test.rank() + 0.5) / sample_test.getSize()
+        ebc = ot.EmpiricalBernsteinCopula(sample_train, int(m), True)
+        cv_loglikelihood -= ebc.computeLogPDF(sample_test).computeMean()[0]
+    cv_ll = cv_loglikelihood / kfolds
+    # print(f"{m} : {cv_ll:.3e}")
+    return cv_ll
+
+def hill_climbing(func, start_x, bounds, jump=1, max_iter=100):
+    lbound, ubound = bounds
+    x = start_x
+    fx = func(x)
+    for _ in range(max_iter):
+        left, right = max(x - jump, lbound), min(x + jump, ubound)
+        f_left, f_right = func(left), func(right)
+        if f_left < fx:
+            x, fx = left, f_left
+        elif f_right < fx:
+            x, fx = right, f_right
+        else:
+            break
+    return x, fx
+
+def optimize_ebc_loglikehood(sample, m_min=None, m_max=None, kfolds=2):
+    # Drop duplicates for the optimization
+    sample = ot.Sample(sample).sortUnique()
+    if m_min is None: 
+        m_min = 1
+    if m_max is None: 
+        m_max = sample.sortUnique().getSize() 
+    def func(m):
+        return cross_validation_loglikelihood(m, sample=sample, kfolds=kfolds)
+    m_start = ot.BernsteinCopulaFactory.ComputeAMISEBinNumber(sample)
+    optimal_m, _ = hill_climbing(func, start_x=m_min, bounds=[m_min, m_max], jump=100)
+    optimal_m, _ = hill_climbing(func, start_x=optimal_m, bounds=[m_min, m_max], jump=10)
+    optimal_m, _ = hill_climbing(func, start_x=optimal_m, bounds=[m_min, m_max], jump=2)
+    # print(f"HC optimal : {optimal_m}")
+    return optimal_m
 
 ####################
 class DrawFunctions:

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import openturns as ot
 import bancs as bc
-from itertools import product
+from tqdm.contrib.itertools import product
 from scipy.stats import bootstrap
 from multiprocessing import Pool
 
@@ -18,7 +18,7 @@ class ReliabilityBenchmark:
     """
     TODO: docstring
     """
-    def __init__(self, problems, methods=["BANCS", "SS", "NAIS"], sizes=[int(1e4)], m="amise", reps=10):
+    def __init__(self, problems, methods=["BANCS", "SS", "NAIS"], sizes=[int(1e4)], ebc_tuning="amise", reps=10):
         self.sizes = sizes
         self.methods = methods
         self.problems = problems
@@ -28,7 +28,7 @@ class ReliabilityBenchmark:
         self.df_results = pd.DataFrame([], columns=["nb_samples", "pf_mean", "pf_ref", "pf_std", "pf_ic_low", "pf_ic_up", "pfs"], index=multi_indexes)
         self.df_results['pfs'].astype('object')
         self.p0 = 0.1
-        self.m = m
+        self.ebc_tuning = ebc_tuning
         self.reps = reps
 
     def _run_one_rep(self, problem, method, size, m, seed):
@@ -50,8 +50,7 @@ class ReliabilityBenchmark:
             ss.setMaximumCoefficientOfVariation(-1.0)
             ss.setConditionalProbability(self.p0)
             ss.setBlockSize(1)
-            timer = ot.TimerCallback(120)
-            ss.setStopCallback(timer)
+            ss.setMaximumTimeDuration(120)
             ss.run()
             res = ss.getResult()
             nb_samples = res.getOuterSampling()
@@ -71,8 +70,7 @@ class ReliabilityBenchmark:
                 nais.setMaximumOuterSampling(size)
                 nais.setMaximumCoefficientOfVariation(-1.0)
                 nais.setBlockSize(1)
-                timer = ot.TimerCallback(120)
-                nais.setStopCallback(timer)
+                nais.setMaximumTimeDuration(120)
                 nais.run()
                 res = nais.getResult()
                 nb_samples = res.getOuterSampling()
@@ -81,18 +79,12 @@ class ReliabilityBenchmark:
         return pf, nb_samples
 
     def run(self, save_file=None):
-        for problem, method, size in product(self.problems, self.methods, self.sizes):
-            dim = problem.getEvent().getAntecedent().getDimension()
-            if self.m == "amise":
-                m = int(1 + np.floor(size ** (2 / (4 + dim))))
-            else : 
-                m = self.m
-
+        for problem, method, size in product(self.problems, self.methods, self.sizes, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}'):
             pf_ref = problem.getProbability()
             pfs = np.array([])
             nb_samples_list = np.array([])
 
-            repeated_setup = np.array([[problem, method, size, m]] * self.reps)
+            repeated_setup = np.array([[problem, method, size, self.ebc_tuning]] * self.reps)
             repeated_setup = np.concatenate((repeated_setup, np.arange(self.reps).reshape(-1, 1)), axis=-1)
             if method == "BANCS":
                 with Pool(10) as p:
